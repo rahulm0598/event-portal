@@ -44,12 +44,17 @@ async function getTransporter() {
     return transporter;
   }
 
-  // Real SMTP
+  // Real SMTP. Pool + timeouts so a slow Gmail handshake never hangs a request.
   transporter = nodemailer.createTransport({
     host: env.smtp.host,
     port: env.smtp.port,
     secure: env.smtp.port === 465,
     auth: { user: env.smtp.user, pass: env.smtp.pass },
+    pool: true,
+    maxConnections: 3,
+    connectionTimeout: 10000, // 10s to connect
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
   });
   return transporter;
 }

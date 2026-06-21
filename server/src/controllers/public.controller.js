@@ -126,8 +126,8 @@ export const publicVerify = asyncHandler(async (req, res) => {
     reg.paymentStatus = 'not_required';
     reg.registeredAt = new Date();
     await reg.save();
-    const { previewUrl } = await sendRegistered(reg, ev);
-    return res.json({ success: true, status: 'registered', paid: false, emailPreviewUrl: previewUrl });
+    sendRegistered(reg, ev).catch(() => {}); // background — don't block the response
+    return res.json({ success: true, status: 'registered', paid: false });
   }
 
   await reg.save();
@@ -173,8 +173,8 @@ export const publicPay = asyncHandler(async (req, res) => {
       raw: { demo: true },
     });
 
-    const { previewUrl } = await sendRegistered(reg, event);
-    return res.json({ success: true, status: 'registered', demo: true, emailPreviewUrl: previewUrl });
+    sendRegistered(reg, event).catch(() => {}); // background — don't block the response
+    return res.json({ success: true, status: 'registered', demo: true });
   }
 
   // Production would create a real Razorpay order here.

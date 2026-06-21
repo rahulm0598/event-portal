@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Stethoscope, Ticket, CheckCircle2, Wallet, ListChecks, Plus, UserCheck, Undo2, Search, Link2, Copy, Send, Megaphone } from 'lucide-react';
 import { api } from '../api/client.js';
@@ -20,6 +20,15 @@ export default function AdminDashboard() {
   const [notice, setNotice] = useState('');
   const [acting, setActing] = useState('');
   const [confirm, setConfirm] = useState(null); // { type } pending broadcast
+  const detailRef = useRef(null);
+
+  // On mobile, the event detail panel renders far below the list — auto-scroll
+  // to it when an event is picked so the user actually sees it.
+  useEffect(() => {
+    if (sel && detailRef.current && window.innerWidth < 1024) {
+      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [sel]);
 
   async function loadAll() {
     try {
@@ -92,11 +101,11 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-extrabold text-white">Admin Dashboard</h1>
         <div className="flex gap-2">
-          <Link to="/admin/registrations" className="btn-ghost"><ListChecks size={16} /> All Registrations</Link>
-          <button onClick={() => setShowForm((s) => !s)} className="btn-primary">
+          <Link to="/admin/registrations" className="btn-ghost flex-1 justify-center sm:flex-none"><ListChecks size={16} /> All Registrations</Link>
+          <button onClick={() => setShowForm((s) => !s)} className="btn-primary flex-1 justify-center sm:flex-none">
             <Plus size={16} strokeWidth={2.5} /> {showForm ? 'Close' : 'New Event'}
           </button>
         </div>
@@ -146,7 +155,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* detail */}
-        <div className="lg:col-span-2">
+        <div ref={detailRef} className="scroll-mt-20 lg:col-span-2">
           {!sel ? (
             <div className="card text-slate-500">Select an event to view stats & attendees.</div>
           ) : (
@@ -279,8 +288,8 @@ function Kpi({ label, value, Icon, tone, accent }) {
         <Icon size={20} strokeWidth={2} />
       </span>
       <div className="min-w-0">
-        <div className="truncate text-xs text-slate-500">{label}</div>
-        <div className={`text-xl font-black ${accent ? 'text-accent' : 'text-white'}`}>{value}</div>
+        <div className="text-[11px] leading-tight text-slate-500">{label}</div>
+        <div className={`text-lg font-black sm:text-xl ${accent ? 'text-accent' : 'text-white'}`}>{value}</div>
       </div>
     </div>
   );

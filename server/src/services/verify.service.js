@@ -23,7 +23,9 @@ export async function issueEmailCode(email, name) {
   // eslint-disable-next-line no-console
   console.log(`[verify] email=${email} code=${code}`);
 
-  await sendMail({
+  // Fire-and-forget: don't make the API response wait on the SMTP handshake.
+  // The 6-digit code is already stored; the email arrives in the background.
+  sendMail({
     to: email,
     subject: 'Your Event Portal verification code',
     html: verificationEmailHtml({ name: name || 'Doctor', code }),
