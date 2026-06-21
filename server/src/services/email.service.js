@@ -59,7 +59,35 @@ async function getTransporter() {
   return transporter;
 }
 
+// Parse 'Name <email@x.com>' (or plain email) into { name, email }.
+function parseFrom(s) {
+  const m = /^(.*?)<(.+?)>$/.exec(s || '');
+  if (m) return { name: (m[1].trim().replace(/^"|"$/g, '') || 'Event Portal'), email: m[2].trim() };
+  return { name: 'Event Portal', email: (s || '').trim() };
+}
+
+// Send via Brevo's HTTPS API (port 443) — works where SMTP is blocked (Render).
+async function sendViaBrevo({ to, subject, html, attachments }) {
+  const sender = parseFrom(env.smtp.from);
+  const body = { sender, to: [{ email: to }], subject, htmlContent: html };
+  if (attachments?.length) {
+    body.attachment = attachments.map((a) => ({
+      name: a.filename,
+      content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : Buffer.from(a.content).toString('base64'),
+    }));
+  }
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: { 'api-key': env.brevoApiKey, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Brevo ${res.status}: ${await res.text()}`);
+  return { messageId: 'brevo', previewUrl: null };
+}
+
 export async function sendMail({ to, subject, html, attachments }) {
+  if (env.mailTransport === 'brevo') return sendViaBrevo({ to, subject, html, attachments });
+
   const tx = await getTransporter();
   const info = await tx.sendMail({ from: env.smtp.from, to, subject, html, attachments });
 

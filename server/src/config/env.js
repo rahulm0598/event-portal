@@ -23,7 +23,10 @@ export const env = {
   //   'ethereal' = fake inbox, prints a preview URL (best for demo, no signup)
   //   'smtp'     = real SMTP (SES/SendGrid/Mailtrap) using SMTP_* vars
   //   'console'  = just log, send nothing
+  //   'brevo'    = Brevo transactional email over HTTPS API (works on hosts
+  //                that block SMTP, e.g. Render free). Set BREVO_API_KEY.
   mailTransport: process.env.MAIL_TRANSPORT || 'ethereal',
+  brevoApiKey: process.env.BREVO_API_KEY || '',
 
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/event_portal',
 
