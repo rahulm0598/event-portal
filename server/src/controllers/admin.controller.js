@@ -31,18 +31,22 @@ export const broadcast = asyncHandler(async (req, res) => {
   const type = req.body?.type === 'followup' ? 'followup' : 'details';
   const note = (req.body?.note || '').toString().slice(0, 500);
 
-  const regs = await Registration.find({
+  const confirmed = await Registration.find({
     event: ev._id,
     emailVerified: true,
     paymentStatus: { $ne: 'pending' },
   });
 
+  // Only mail people who haven't already received THIS type of mail.
+  const stampField = type === 'followup' ? 'followupEmailSentAt' : 'detailsEmailSentAt';
+  const targets = confirmed.filter((r) => !r[stampField]);
+
   let sent = 0;
   const previews = [];
-  for (const reg of regs) {
+  for (const reg of targets) {
     try {
       const fn = type === 'followup' ? sendFollowup : sendEventDetails;
-      const { previewUrl } = await fn(reg, ev, note);
+      const { previewUrl } = await fn(reg, ev, note); // stamps stampField on success
       sent += 1;
       if (previewUrl) previews.push(previewUrl);
     } catch {
@@ -50,7 +54,15 @@ export const broadcast = asyncHandler(async (req, res) => {
     }
   }
 
-  res.json({ success: true, type, recipients: regs.length, sent, previews });
+  res.json({
+    success: true,
+    type,
+    totalConfirmed: confirmed.length,
+    alreadySent: confirmed.length - targets.length,
+    recipients: targets.length, // new people targeted this run
+    sent,
+    previews,
+  });
 });
 
 function sendXlsx(res, buffer, filename) {

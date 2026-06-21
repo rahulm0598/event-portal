@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { ScanLine, Search, Maximize, CheckCircle2, AlertCircle, Printer, RotateCcw, CalendarDays, MapPin } from 'lucide-react';
+import { ScanLine, Search, Maximize, CheckCircle2, AlertCircle, Printer, RotateCcw, CalendarDays, MapPin, X } from 'lucide-react';
 import { api } from '../api/client.js';
 
 // EVENT-DAY KIOSK. Run this on the laptop/tablet at the entrance, fullscreen.
@@ -10,6 +10,7 @@ export default function Scanner() {
   const wrapRef = useRef(null);
   const scannerRef = useRef(null);
   const lockRef = useRef(false);
+  const holdRef = useRef(false); // true while a result is shown -> pause scanning
 
   const [events, setEvents] = useState([]);
   const [eventId, setEventId] = useState('');
@@ -33,19 +34,26 @@ export default function Scanner() {
 
   // ---- check-in by QR token (camera or pasted) ----
   async function check(raw) {
-    if (lockRef.current || !raw) return;
+    if (lockRef.current || holdRef.current || !raw) return; // ignore while showing a result
     lockRef.current = true;
     setErr('');
     try {
       const { data } = await api.post('/scan', { qrToken: raw });
       setResult(data);
-      setTimeout(() => setResult(null), 4500); // auto-clear, keep scanning
+      holdRef.current = true; // stay on screen until staff prints / closes
     } catch (e) {
       setErr(e.message);
       setTimeout(() => setErr(''), 3000);
     } finally {
-      setTimeout(() => { lockRef.current = false; }, 1800);
+      setTimeout(() => { lockRef.current = false; }, 1200);
     }
+  }
+
+  // Close the result card -> resume scanning for the next person.
+  function closeResult() {
+    setResult(null);
+    holdRef.current = false;
+    lockRef.current = false;
   }
 
   async function startScan() {
@@ -117,7 +125,7 @@ export default function Scanner() {
       const { data } = await api.post(`/admin/registrations/${reg._id}/checkin`, { checkedIn: true });
       setAttendees((l) => l.map((r) => r._id === reg._id ? { ...r, checkInStatus: data.checkInStatus, checkedInAt: data.checkedInAt } : r));
       setResult({ doctor: reg.snapshot, event: { title: event?.title }, checkedInAt: data.checkedInAt, registrationId: reg._id, alreadyCheckedIn: reg.checkInStatus === 'checked_in' });
-      setTimeout(() => setResult(null), 4500);
+      holdRef.current = true;
     } catch (e) { setErr(e.message); }
   }
   const filtered = useMemo(() => {
@@ -215,10 +223,13 @@ export default function Scanner() {
         </div>
       </div>
 
-      {/* BIG RESULT OVERLAY */}
+      {/* BIG RESULT OVERLAY — stays until staff prints or taps Done/✕ */}
       {result && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-sm" onClick={() => setResult(null)}>
-          <div className={`w-full max-w-md rounded-3xl border-2 bg-panel p-8 text-center shadow-2xl ${result.alreadyCheckedIn ? 'border-amber-400' : 'border-emerald-400'}`}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className={`relative w-full max-w-md rounded-3xl border-2 bg-panel p-8 text-center shadow-2xl ${result.alreadyCheckedIn ? 'border-amber-400' : 'border-emerald-400'}`}>
+            <button onClick={closeResult} title="Close" className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white">
+              <X size={18} />
+            </button>
             {result.alreadyCheckedIn
               ? <AlertCircle className="mx-auto text-amber-400" size={56} />
               : <CheckCircle2 className="mx-auto text-emerald-400" size={56} />}
@@ -229,10 +240,11 @@ export default function Scanner() {
             <div className="mt-1 text-slate-300">{result.doctor?.specialty} · {result.doctor?.hospital}</div>
             <div className="mt-1 text-sm text-accent">ID: {result.doctor?.doctorId}</div>
             <div className="mt-1 text-xs text-slate-500">{result.event?.title}</div>
-            <div className="mt-5 flex gap-2">
-              <button onClick={(e) => { e.stopPropagation(); printBadge(result.registrationId); }} className="btn-ghost flex-1"><Printer size={15} /> Badge</button>
-              <button onClick={(e) => { e.stopPropagation(); setResult(null); }} className="btn-primary flex-1">Next</button>
+            <div className="mt-6 flex gap-2">
+              <button onClick={() => printBadge(result.registrationId)} className="btn-ghost flex-1"><Printer size={15} /> Print Badge</button>
+              <button onClick={closeResult} className="btn-primary flex-1">Done · Next</button>
             </div>
+            <p className="mt-3 text-[11px] text-slate-500">Stays open until you print or tap Done.</p>
           </div>
         </div>
       )}

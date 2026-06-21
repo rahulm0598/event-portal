@@ -62,17 +62,25 @@ export default function AdminDashboard() {
     if (shareUrl) { navigator.clipboard?.writeText(shareUrl); setNotice('Link copied to clipboard.'); }
   }
 
-  // count of attendees who would actually receive a broadcast
-  const confirmedCount = useMemo(
-    () => attendees.filter((a) => a.emailVerified && a.paymentStatus !== 'pending').length,
-    [attendees]
-  );
+  // how many confirmed attendees still need each mail (haven't gotten it yet)
+  const pending = useMemo(() => {
+    const conf = attendees.filter((a) => a.emailVerified && a.paymentStatus !== 'pending');
+    return {
+      details: conf.filter((a) => !a.detailsEmailSentAt).length,
+      followup: conf.filter((a) => !a.followupEmailSentAt).length,
+      total: conf.length,
+    };
+  }, [attendees]);
 
   async function doBroadcast(type) {
     setConfirm(null); setActing(type); setNotice(''); setErr('');
     try {
       const { data } = await api.post(`/admin/events/${sel._id}/broadcast`, { type });
-      setNotice(`${type === 'followup' ? 'Follow-up' : 'Event details'} mail sent to ${data.sent} of ${data.recipients} confirmed attendee(s).`);
+      const label = type === 'followup' ? 'Follow-up' : 'Event details';
+      setNotice(data.sent > 0
+        ? `${label}: sent to ${data.sent} new attendee(s). ${data.alreadySent} already had it.`
+        : `${label}: everyone (${data.alreadySent}) already received it — nothing new to send.`);
+      if (sel) select(sel); // refresh so the "already sent" stamps update
     } catch (e) { setErr(e.message); } finally { setActing(''); }
   }
 
@@ -263,15 +271,16 @@ export default function AdminDashboard() {
               {confirm.type === 'followup' ? 'Send follow-up mail?' : 'Send event details (+QR)?'}
             </h3>
             <p className="mt-2 text-sm text-slate-400">
-              This emails <strong className="text-white">{confirmedCount}</strong> confirmed attendee(s) of
-              <strong className="text-white"> {sel?.title}</strong>.
+              Emails <strong className="text-white">{pending[confirm.type]}</strong> attendee(s) of
+              <strong className="text-white"> {sel?.title}</strong> who haven't received it yet
+              <span className="text-slate-500"> ({pending.total - pending[confirm.type]} already got it).</span>
               {confirm.type !== 'followup' && ' Each gets their unique entry QR.'}
             </p>
             <p className="mt-2 text-xs text-amber-300">This cannot be undone — mails go out immediately.</p>
             <div className="mt-5 flex gap-2">
               <button onClick={() => setConfirm(null)} className="btn-ghost flex-1">Cancel</button>
-              <button onClick={() => doBroadcast(confirm.type)} disabled={confirmedCount === 0} className="btn-primary flex-1">
-                {confirmedCount === 0 ? 'No recipients' : `Send to ${confirmedCount}`}
+              <button onClick={() => doBroadcast(confirm.type)} disabled={pending[confirm.type] === 0} className="btn-primary flex-1">
+                {pending[confirm.type] === 0 ? 'Nothing new to send' : `Send to ${pending[confirm.type]} new`}
               </button>
             </div>
           </div>

@@ -1,3 +1,5 @@
+import { UserRound } from 'lucide-react';
+
 // On-screen badge that mirrors the printed PDF design:
 // blue gradient top, circular photo, NAME, specialty • hospital, QR at bottom.
 export default function BadgeCard({ doctor, eventTitle, qr }) {
@@ -8,11 +10,11 @@ export default function BadgeCard({ doctor, eventTitle, qr }) {
     <div className="mx-auto w-[260px] overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
       {/* top gradient band */}
       <div className="relative h-36 bg-gradient-to-br from-navy via-brand to-accent">
-        <div className="pt-5 text-center">
-          <div className="text-sm font-bold uppercase tracking-widest text-white">
+        <div className="px-3 pt-4 text-center">
+          <div className="line-clamp-2 text-[13px] font-bold uppercase leading-tight tracking-wide text-white">
             {eventTitle || 'EVENT PORTAL'}
           </div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.3em] text-blue-100">
+          <div className="mt-1 text-[9px] uppercase tracking-[0.3em] text-blue-100">
             Medical Conference ID
           </div>
         </div>
@@ -22,8 +24,8 @@ export default function BadgeCard({ doctor, eventTitle, qr }) {
             {photo ? (
               <img src={photo} alt={doctor?.name} className="h-full w-full rounded-full object-cover" />
             ) : (
-              <div className="grid h-full w-full place-items-center rounded-full bg-slate-200 text-2xl font-bold text-slate-400">
-                {(doctor?.name || '?').charAt(0)}
+              <div className="grid h-full w-full place-items-center rounded-full bg-slate-100 text-slate-400">
+                <UserRound size={44} strokeWidth={1.6} />
               </div>
             )}
           </div>

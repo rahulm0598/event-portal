@@ -56,22 +56,31 @@ export async function buildBadgePdf(registration) {
   doc.closePath().fill('#ffffff');
   doc.restore();
 
-  // --- Logo / company name (top) ---
-  doc
-    .fillColor('#ffffff')
-    .font('Helvetica-Bold')
-    .fontSize(11 * SCALE)
-    .text((registration._eventLogoText || 'EVENT PORTAL').toUpperCase(), 0, 26 * SCALE, {
-      width: W,
-      align: 'center',
-      characterSpacing: 1.5,
-    });
+  // --- Logo / company name (top) — auto-shrink long titles, place subtitle
+  // dynamically below so they never overlap. ---
+  const titleText = (registration._eventLogoText || 'EVENT PORTAL').toUpperCase();
+  const padX = 10 * SCALE;
+  const innerW = W - padX * 2;
+  doc.fillColor('#ffffff').font('Helvetica-Bold');
+  let titleSize = 11 * SCALE;
+  for (const sz of [11, 9.5, 8, 7]) {
+    doc.fontSize(sz * SCALE);
+    const h = doc.heightOfString(titleText, { width: innerW, align: 'center', characterSpacing: 1.2 });
+    titleSize = sz * SCALE;
+    if (h <= 15 * SCALE * 2) break; // fits within ~2 lines
+  }
+  doc.fontSize(titleSize).text(titleText, padX, 20 * SCALE, {
+    width: innerW,
+    align: 'center',
+    characterSpacing: 1.2,
+  });
+  // subtitle right under the actual title bottom
   doc
     .font('Helvetica')
     .fontSize(5.5 * SCALE)
     .fillColor('#dbe6ff')
-    .text('MEDICAL CONFERENCE ID', 0, 40 * SCALE, {
-      width: W,
+    .text('MEDICAL CONFERENCE ID', padX, doc.y + 2 * SCALE, {
+      width: innerW,
       align: 'center',
       characterSpacing: 3,
     });
@@ -95,15 +104,14 @@ export async function buildBadgePdf(registration) {
     }
     doc.restore();
   } else {
-    doc.circle(cx, cy, r).fill('#dfe6f5');
-    doc
-      .fillColor('#9fb0d4')
-      .font('Helvetica-Bold')
-      .fontSize(20 * SCALE)
-      .text((s.name || '?').charAt(0).toUpperCase(), cx - r, cy - 14 * SCALE, {
-        width: r * 2,
-        align: 'center',
-      });
+    // Simple person silhouette avatar (head + shoulders), clipped to the circle.
+    doc.circle(cx, cy, r).fill('#e7edf8');
+    doc.save();
+    doc.circle(cx, cy, r).clip();
+    doc.fillColor('#aab8d4');
+    doc.circle(cx, cy - r * 0.20, r * 0.30).fill();              // head
+    doc.ellipse(cx, cy + r * 0.62, r * 0.58, r * 0.42).fill();    // shoulders
+    doc.restore();
   }
 
   // --- Name ---
